@@ -175,4 +175,5 @@ cython_debug/
 
 # Custom .gitignore
 data/*
+!.gitkeep
 runs/
