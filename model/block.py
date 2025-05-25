@@ -17,7 +17,7 @@ class RGB2YCrCb(nn.Module):
 
         Y = 0.299 * R + 0.587 * G + 0.114 * B
         Cr = (R - Y) * 0.713 + offset
-        Cb = (B - Y) * 0.5256 + offset
+        Cb = (B - Y) * 0.564 + offset
 
         Y = torch.clamp(input=Y, min=0.0, max=1.0)
         Cr = torch.clamp(input=Cr, min=0.0, max=1.0)
@@ -51,13 +51,13 @@ class YCrCb2RGB(nn.Module):
 
 
 class HomomorphicSeparation(nn.Module):
-    def __init__(self, size=256, cutoff=0.1, trainable=False, eps=1e-6):
+    def __init__(self, size=512, cutoff=0.1, trainable=False, eps=1e-6):
         super().__init__()
         self.size = size
         self.eps = float(eps)
 
         # cutoff → logit 변환 후 파라미터화
-        p = torch.tensor(data=max(cutoff, 0.1), dtype=torch.float64)
+        p = torch.tensor(data=max(cutoff, 0.1), dtype=torch.float32)
         logit = torch.log(input=p / (1.0 - p))
         self.raw_cutoff = nn.Parameter(data=logit, requires_grad=trainable)
 
@@ -92,7 +92,7 @@ class HomomorphicSeparation(nn.Module):
         low_fft = x_fft * H
         high_fft = x_fft * (1 - H)
 
-        # 64. iFFT
+        # 8. iFFT
         low_ifft = torch.fft.ifft2(
             torch.fft.ifftshift(low_fft), norm='ortho').real
         high_ifft = torch.fft.ifft2(
@@ -113,13 +113,60 @@ class HomomorphicSeparation(nn.Module):
         return low, high
 
 
-class YSymmetricSigmoid(nn.Module):
-    def __init__(self):
-        super().__init__()
+class SigmoidXSym(nn.Sigmoid):
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
 
     def forward(self, x):
-        x = torch.clamp(input=x, min=-10.0, max=10.0)
-        return torch.sigmoid(input=-x)
+        x = -super().forward(input=x)
+        return x
+
+
+class SigmoidYSym(nn.Sigmoid):
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
+
+    def forward(self, x):
+        x = super().forward(input=-x)
+        return x
+
+
+class SigmoidXYSym(nn.Sigmoid):
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
+
+    def forward(self, x):
+        x = super().forward(input=-x)
+        x = torch.abs(input=x)
+        return x
+
+
+class TanhSym(nn.Tanh):
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
+
+    def forward(self, x):
+        x = super().forward(input=-x)
+        return x
+
+
+class TanhAbs(nn.Tanh):
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
+
+    def forward(self, x):
+        x = torch.abs(input=super().forward(input=x))
+        return x
+
+
+class TanhSymAbs(nn.Tanh):
+    def __init__(self, *arg, **kwargs):
+        super().__init__(*arg, **kwargs)
+
+    def forward(self, x):
+        x = super().forward(input=-x)
+        x = torch.abs(input=x)
+        return x
 
 
 class DoubleConv(nn.Module):
@@ -134,7 +181,6 @@ class DoubleConv(nn.Module):
                 out_channels=hidden_channels,
                 kernel_size=3,
                 padding=1,
-                padding_mode='replicate'
             ),
             nn.BatchNorm2d(num_features=hidden_channels),
             nn.Conv2d(
@@ -142,7 +188,6 @@ class DoubleConv(nn.Module):
                 out_channels=out_channels,
                 kernel_size=3,
                 padding=1,
-                padding_mode='replicate'
             ),
             nn.BatchNorm2d(num_features=out_channels),
         )
@@ -164,7 +209,7 @@ class Down(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
             ),
-            nn.Sigmoid()
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -185,10 +230,10 @@ class Up(nn.Module):
 
         self.conv_block = nn.Sequential(
             DoubleConv(
-                in_channels=in_channels*2,
+                in_channels=in_channels,
                 out_channels=out_channels
             ),
-            nn.Sigmoid()
+            nn.ReLU()
         )
 
     def forward(self, x1, x2):
@@ -215,26 +260,26 @@ class UNet(nn.Module):
         self.inc = nn.Sequential(
             DoubleConv(
                 in_channels=1,
-                out_channels=32,
+                out_channels=16,
             ),
-            nn.Sigmoid()
+            nn.ReLU()
         )
-        self.down1 = Down(in_channels=32, out_channels=32)
-        self.down2 = Down(in_channels=32, out_channels=32)
-        self.down3 = Down(in_channels=32, out_channels=32)
-        self.down4 = Down(in_channels=32, out_channels=32)
-        self.down5 = Down(in_channels=32, out_channels=32)
-        self.up5 = Up(in_channels=32, out_channels=32)
-        self.up4 = Up(in_channels=32, out_channels=32)
-        self.up3 = Up(in_channels=32, out_channels=32)
-        self.up2 = Up(in_channels=32, out_channels=32)
-        self.up1 = Up(in_channels=32, out_channels=32)
+        self.down1 = Down(in_channels=16, out_channels=32)
+        self.down2 = Down(in_channels=32, out_channels=64)
+        self.down3 = Down(in_channels=64, out_channels=128)
+        self.down4 = Down(in_channels=128, out_channels=256)
+        self.down5 = Down(in_channels=256, out_channels=512)
+        self.up5 = Up(in_channels=512, out_channels=256)
+        self.up4 = Up(in_channels=256, out_channels=128)
+        self.up3 = Up(in_channels=128, out_channels=64)
+        self.up2 = Up(in_channels=64, out_channels=32)
+        self.up1 = Up(in_channels=32, out_channels=16)
         self.outc = nn.Sequential(
             DoubleConv(
-                in_channels=32,
+                in_channels=16,
                 out_channels=1,
             ),
-            nn.Sigmoid()
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -263,9 +308,8 @@ class IterableRefine(nn.Module):
                 out_channels=8,
                 kernel_size=3,
                 padding=1,
-                padding_mode='replicate'
             ),
-            nn.Tanh()
+            TanhSymAbs()
         )
 
     def forward(self, x, r):
@@ -274,13 +318,13 @@ class IterableRefine(nn.Module):
             split_size_or_sections=1,
             dim=1
         )
-        x = x - r1*(torch.pow(input=x, exponent=2)-x)
-        x = x - r2*(torch.pow(input=x, exponent=2)-x)
-        x = x - r3*(torch.pow(input=x, exponent=2)-x)
-        x = x - r4*(torch.pow(input=x, exponent=2)-x)
-        x = x - r5*(torch.pow(input=x, exponent=2)-x)
-        x = x - r6*(torch.pow(input=x, exponent=2)-x)
-        x = x - r7*(torch.pow(input=x, exponent=2)-x)
-        x = x - r8*(torch.pow(input=x, exponent=2)-x)
-        x = torch.clamp(input=x, min=0, max=1)
-        return x
+        x1 = x - r1*(torch.pow(input=x, exponent=2)-x)
+        x2 = x1 - r2*(torch.pow(input=x1, exponent=2)-x1)
+        x3 = x2 - r3*(torch.pow(input=x2, exponent=2)-x2)
+        x4 = x3 - r4*(torch.pow(input=x3, exponent=2)-x3)
+        x5 = x4 - r5*(torch.pow(input=x4, exponent=2)-x4)
+        x6 = x5 - r6*(torch.pow(input=x5, exponent=2)-x5)
+        x7 = x6 - r7*(torch.pow(input=x6, exponent=2)-x6)
+        x8 = x7 - r8*(torch.pow(input=x7, exponent=2)-x7)
+        x8 = torch.clamp(input=x8, min=0, max=1)
+        return x8

@@ -15,21 +15,27 @@ from engine.inferencer import LightningInferencer
 
 
 class DetectNanCallback(Callback):
-    def __init__(self, save_dir="./nan_checkpoints"):
+    def __init__(self):
         super().__init__()
-        self.save_dir = save_dir
-        os.makedirs(name=self.save_dir, exist_ok=True)
         self.last_ckpt_path = None
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+    def on_after_backward(self, trainer, pl_module):
+        """
+        backward가 끝난 직후에 호출됩니다.
+        grad에 NaN이 있는지 체크하고, 있을 경우 업데이트 이전의 파라미터 상태를 저장합니다.
+        """
         for name, param in pl_module.named_parameters():
-            if torch.isnan(input=param.data).any() or (param.grad is not None and torch.isnan(input=param.grad).any()):
-                log_dir = trainer.logger.log_dir
-                ckpt_path = os.path.join(log_dir, "nan_ckpt.ckpt")
+            if param.grad is not None and torch.isnan(input=param.grad).any():
+                log_dir = trainer.log_dir
+                ckpt_path = os.path.join(log_dir, "pre_nan_ckpt.ckpt")
+                # 이 시점에는 파라미터가 아직 업데이트되지 않았으므로, NaN 이전 모델이 저장됩니다.
                 trainer.save_checkpoint(filepath=ckpt_path)
-                print(f"[DetectNanCallback] NaN 발생 → 모델 저장 완료: {ckpt_path}")
+                print(
+                    f"[DetectNanCallback] NaN 발생한 grad 감지 → 이전 파라미터로 체크포인트 저장: {ckpt_path}")
                 self.last_ckpt_path = ckpt_path
-                raise RuntimeError(f"[DetectNanCallback] NaN in {name}")
+                # 그 즉시 학습을 멈추고 에러를 띄웁니다.
+                raise RuntimeError(
+                    f"[DetectNanCallback] NaN in gradient of {name}")
 
 
 class LightningEngine:

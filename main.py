@@ -15,7 +15,7 @@ def get_hparams():
         "lambda_col": 100.0,
         "lambda_exp": 1.0,
         "lambda_spa": 10.0,
-        "lambda_tva": 1.0,
+        "lambda_tva": 0.1,
 
         # 최적화 및 학습 설정
         "optim": "sgd",
@@ -24,7 +24,7 @@ def get_hparams():
         "epochs": 100,
         "patience": 30,
         "batch_size": 16,
-        "seed": 7077,
+        "seed": random.randint(a=0, b=10000),
 
         # 데이터 경로
         "train_data_path": "data/1_train",
@@ -33,38 +33,18 @@ def get_hparams():
         "infer_data_path": "data/4_infer",
 
         # 로깅 설정
-        "log_dir": "./runs/HomomorphicUnet/optims/ReduceActz",
+        "log_dir": "./runs/HomomorphicUnet/optims/ReLUReLUTanhXS",
         "experiment_name": "test",
         "inference": "inference",
     }
     return hparams
 
 
-# def main():
-#     hparams = get_hparams()
-#     engin = LightningEngine(
-#         model=HomomorphicUnetLightning,
-#         hparams=hparams,
-#         ckpt="runs/HomomorphicUnet/add_tva_loss/version_14/checkpoints/step-step=2300.ckpt"
-#     )
-
-#     print("[RUNNING] Trainer...")
-#     engin.train()
-
-#     print("[RUNNING] Validater...")
-#     engin.valid()
-
-#     print("[RUNNING] Benchmarker...")
-#     engin.bench()
-
-#     print("[RUNNING] Inferencer...")
-#     engin.infer()
-
-
 def main():
     hparams = get_hparams()
-    opts = ["sgd", "asgd", "rmsprop", "rprop",
-            "adam", "adamw", "adamax", "adadelta"]
+    # opts = ["sgd", "asgd", "rmsprop", "rprop",
+    #        "adam", "adamw", "adamax", "adadelta"]
+    opts = ["rmsprop"]
 
     for opt in opts:
         print(f"\n[STARTING] Optimizer: {opt}")
@@ -85,6 +65,7 @@ def main():
         # 학습 성공 또는 NaN 발생 후 복구된 상태로 평가
         engin.valid()
         engin.bench()
+        engin.infer()
 
 
 if __name__ == "__main__":

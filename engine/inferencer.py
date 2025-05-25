@@ -28,8 +28,7 @@ class LightningInferencer:
         self.datamodule = self._build_datamodule()
 
         self.save_dir = Path(
-            self.hparams["log_dir"],
-            self.hparams["experiment_name"],
+            self.trainer.log_dir,
             self.hparams["inference"]
         )
         print(f"Save Directory: {self.save_dir}")
