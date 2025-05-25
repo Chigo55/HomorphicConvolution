@@ -33,7 +33,7 @@ def get_hparams():
         "infer_data_path": "data/4_infer",
 
         # 로깅 설정
-        "log_dir": "./runs/HomomorphicUnet/optims/ReLUReLUTanhXS",
+        "log_dir": "./runs/HomomorphicUnet/optims/ReLUReLUSigmoid_06",
         "experiment_name": "test",
         "inference": "inference",
     }

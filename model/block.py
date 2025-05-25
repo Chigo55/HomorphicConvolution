@@ -260,23 +260,23 @@ class UNet(nn.Module):
         self.inc = nn.Sequential(
             DoubleConv(
                 in_channels=1,
-                out_channels=16,
+                out_channels=8,
             ),
             nn.ReLU()
         )
-        self.down1 = Down(in_channels=16, out_channels=32)
-        self.down2 = Down(in_channels=32, out_channels=64)
-        self.down3 = Down(in_channels=64, out_channels=128)
-        self.down4 = Down(in_channels=128, out_channels=256)
-        self.down5 = Down(in_channels=256, out_channels=512)
-        self.up5 = Up(in_channels=512, out_channels=256)
-        self.up4 = Up(in_channels=256, out_channels=128)
-        self.up3 = Up(in_channels=128, out_channels=64)
-        self.up2 = Up(in_channels=64, out_channels=32)
-        self.up1 = Up(in_channels=32, out_channels=16)
+        self.down1 = Down(in_channels=8, out_channels=16)
+        self.down2 = Down(in_channels=16, out_channels=32)
+        self.down3 = Down(in_channels=32, out_channels=64)
+        self.down4 = Down(in_channels=64, out_channels=128)
+        self.down5 = Down(in_channels=128, out_channels=256)
+        self.up5 = Up(in_channels=256, out_channels=128)
+        self.up4 = Up(in_channels=128, out_channels=64)
+        self.up3 = Up(in_channels=64, out_channels=32)
+        self.up2 = Up(in_channels=32, out_channels=16)
+        self.up1 = Up(in_channels=16, out_channels=8)
         self.outc = nn.Sequential(
             DoubleConv(
-                in_channels=16,
+                in_channels=8,
                 out_channels=1,
             ),
             nn.ReLU()
@@ -309,7 +309,7 @@ class IterableRefine(nn.Module):
                 kernel_size=3,
                 padding=1,
             ),
-            TanhSymAbs()
+            nn.Sigmoid()
         )
 
     def forward(self, x, r):

@@ -91,7 +91,7 @@ class L_spa(nn.Module):
 
 
 class L_exp(nn.Module):
-    def __init__(self, patch_size=16, mean_val=0.8):
+    def __init__(self, patch_size=16, mean_val=0.6):
         super().__init__()
         self.pool = nn.AvgPool2d(kernel_size=patch_size)
         self.mean_val = mean_val
