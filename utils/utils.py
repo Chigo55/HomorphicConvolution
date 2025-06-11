@@ -17,9 +17,9 @@ def print_metrics(metrics: dict, prefix: str = ""):
 
 
 def save_images(results, save_dir, prefix="infer", ext="png"):
-    for i, datasets in enumerate(iterable=results):
+    for i, datasets in enumerate(results):
         save_path = make_dirs(path=f"{save_dir}/batch{i+1}")
-        for ii, batch in enumerate(iterable=datasets):
+        for ii, batch in enumerate(datasets):
             save_image(
                 tensor=batch,
                 fp=save_path / f"{prefix}_{ii:04d}.{ext}",
