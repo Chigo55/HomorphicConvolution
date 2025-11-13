@@ -16,7 +16,7 @@ def get_hparams() -> dict[str, Any]:
         # "precision": 32,
         "log_every_n_steps": 5,
         "log_dir": "runs/",
-        "experiment_name": "test/",
+        "experiment_name": " no_ref/",
         "patience": 10,
         # Runner
         "inference": "inference/",
