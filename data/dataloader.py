@@ -169,4 +169,5 @@ class LowLightDataModule(L.LightningDataModule):
     def predict_dataloader(self) -> list[LowLightDataLoader]:
         return self._set_dataloader(
             datasets=self.infer_datasets,
+            shuffle=True,
         )
