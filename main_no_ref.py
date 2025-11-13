@@ -2,8 +2,6 @@ import os
 import random
 from typing import Any
 
-import numpy as np
-
 from engine.engine import LightningEngine
 from model.model_no_ref import LowLightEnhancerLightning
 

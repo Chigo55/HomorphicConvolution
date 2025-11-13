@@ -9,9 +9,9 @@ from torch import Tensor
 class RGB2YCrCbBlock(nn.Module):
     def __init__(
         self,
-        offset: float,
     ) -> None:
         super().__init__()
+        self.conv = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, bias=False)
         transform = torch.tensor(
             data=[
                 [0.299, 0.587, 0.114],
@@ -19,17 +19,11 @@ class RGB2YCrCbBlock(nn.Module):
                 [-0.168736, -0.331264, 0.5],
             ],
             dtype=torch.float32,
-        )
-        bias = torch.tensor(data=[0.0, offset, offset], dtype=torch.float32).view(
-            1, 3, 1, 1
-        )
-        self.register_buffer(name="transform_matrix", tensor=transform)
-        self.register_buffer(name="chrominance_bias", tensor=bias)
+        ).view(3, 3, 1, 1)
+        self.conv.weight = nn.Parameter(data=transform, requires_grad=False)
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        transform = self.transform_matrix.to(dtype=x.dtype, device=x.device)
-        bias = self.chrominance_bias.to(dtype=x.dtype, device=x.device)
-        ycrcb: Tensor = torch.einsum("bchw,dc->bdhw", x, transform) + bias
+        ycrcb: Tensor = self.conv(x)
         y, cr, cb = torch.chunk(input=ycrcb, chunks=3, dim=1)
         return y, cr, cb
 
@@ -37,9 +31,9 @@ class RGB2YCrCbBlock(nn.Module):
 class YCrCb2RGBBlock(nn.Module):
     def __init__(
         self,
-        offset: float,
     ) -> None:
         super().__init__()
+        self.conv = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, bias=False)
         transform = torch.tensor(
             data=[
                 [1.0, 1.403, 0.0],
@@ -47,110 +41,85 @@ class YCrCb2RGBBlock(nn.Module):
                 [1.0, 0.0, 1.773],
             ],
             dtype=torch.float32,
-        )
-        bias = torch.tensor(data=[0.0, offset, offset], dtype=torch.float32).view(
-            1, 3, 1, 1
-        )
-        self.register_buffer(name="transform_matrix", tensor=transform)
-        self.register_buffer(name="chrominance_bias", tensor=bias)
+        ).view(3, 3, 1, 1)
+        self.conv.weight = nn.Parameter(data=transform, requires_grad=False)
 
-    def forward(
-        self,
-        y: Tensor,
-        cr: Tensor,
-        cb: Tensor,
-    ) -> Tensor:
-        ycrcb: Tensor = torch.cat(tensors=[y, cr, cb], dim=1)
-        transform = self.transform_matrix.to(dtype=ycrcb.dtype, device=ycrcb.device)
-        bias = self.chrominance_bias.to(dtype=ycrcb.dtype, device=ycrcb.device)
-        centered: Tensor = ycrcb - bias
-        rgb: Tensor = torch.einsum("bchw,dc->bdhw", centered, transform)
+    def forward(self, ycrcb: Tensor) -> Tensor:
+        rgb: Tensor = self.conv(ycrcb)
         return rgb
 
 
 class HomomorphicSeparationBlock(nn.Module):
     def __init__(
         self,
-        cutoff: float,
+        kernel_size: int = 21,
+        sigma: float = 5.0,
     ) -> None:
         super().__init__()
-        cutoff_tensor = torch.tensor(data=float(cutoff), dtype=torch.float32)
-        self.register_buffer(name="cutoff", tensor=cutoff_tensor)
-        self._sigma_denom: float = math.sqrt(math.log(2.0))
-        self._filter_cache: dict[
-            tuple[int, int, torch.device, torch.dtype], Tensor
-        ] = {}
+        self.gaussian_blur = self._build_gaussian_blur(
+            kernel_size=kernel_size, sigma=sigma
+        )
 
-    def _gaussian_lpf(
-        self,
-        size: tuple[int, int],
-        reference: Tensor,
-    ) -> Tensor:
-        key = (size[0], size[1], reference.device, reference.dtype)
-        cached = self._filter_cache.get(key)
-        if cached is not None:
-            return cached
+    def _build_gaussian_blur(self, kernel_size: int, sigma: float) -> nn.Module:
+        x_cord = torch.arange(end=kernel_size)
+        x_grid = x_cord.repeat(kernel_size).view(kernel_size, kernel_size)
+        y_grid = x_grid.t()
+        xy_grid = torch.stack(tensors=[x_grid, y_grid], dim=-1).float()
+        mean = (kernel_size - 1) / 2.0
+        variance = sigma**2.0
+        gaussian_kernel = (1.0 / (2.0 * math.pi * variance)) * torch.exp(
+            input=-torch.sum(input=(xy_grid - mean) ** 2.0, dim=-1) / (2 * variance)
+        )
+        gaussian_kernel = gaussian_kernel / torch.sum(input=gaussian_kernel)
+        gaussian_weights = gaussian_kernel.view(1, 1, kernel_size, kernel_size)
 
-        height, width = size
-        device = reference.device
-        dtype = reference.dtype
-
-        fy: Tensor = torch.fft.fftfreq(height, d=1.0, device=device, dtype=dtype)
-        fx: Tensor = torch.fft.fftfreq(width, d=1.0, device=device, dtype=dtype)
-        fy = torch.fft.fftshift(fy)
-        fx = torch.fft.fftshift(fx)
-
-        y, x = torch.meshgrid(fy, fx, indexing="ij")
-        radius: Tensor = torch.hypot(input=x, other=y)
-
-        cutoff = self.cutoff.to(device=device, dtype=dtype)
-        sigma = cutoff / reference.new_tensor(data=self._sigma_denom)
-        denominator = 2.0 * sigma * sigma
-        h: Tensor = torch.exp(input=-(radius * radius) / denominator)
-        h = h.unsqueeze(dim=0).unsqueeze(dim=0)
-        self._filter_cache[key] = h
-        return h
+        gaussian_blur = nn.Conv2d(
+            in_channels=1,
+            out_channels=1,
+            kernel_size=kernel_size,
+            padding=(kernel_size // 2),
+            bias=False,
+        )
+        gaussian_blur.weight = nn.Parameter(data=gaussian_weights, requires_grad=False)
+        return gaussian_blur
 
     def forward(
         self,
-        x: Tensor,
+        y: Tensor,
     ) -> Tuple[Tensor, Tensor]:
-        height, width = x.shape[-2:]
+        original_dtype = y.dtype
 
-        x_log: Tensor = torch.log(input=torch.clamp(input=x, min=1e-5))
+        y_f32: Tensor = y.float()
+        y_clamped_f32: Tensor = torch.clamp(input=y_f32, min=1e-6)
+        y_log_f32: Tensor = torch.log(input=y_clamped_f32)
 
-        x_fft: Tensor = torch.fft.fft2(x_log, norm="ortho")
-        x_fft = torch.fft.fftshift(x_fft)
+        y_log_original: Tensor = y_log_f32.to(dtype=original_dtype)
+        low_log_original: Tensor = self.gaussian_blur(y_log_original)
 
-        h: Tensor = self._gaussian_lpf(size=(height, width), reference=x)
-        h = h.to(dtype=x_fft.dtype)
-        low_fft: Tensor = x_fft * h
+        low_log_f32: Tensor = low_log_original.float()
+        LOG_CLAMP_MAX = 80.0
+        low_log_f32 = torch.clamp(input=low_log_f32, max=LOG_CLAMP_MAX)
+        il_f32: Tensor = torch.exp(input=low_log_f32)
 
-        low_log: torch.Tensor = torch.fft.ifft2(
-            torch.fft.ifftshift(low_fft), norm="ortho"
-        ).real
-        high_log: torch.Tensor = x_log - low_log
+        il_f32_safe = torch.clamp(input=il_f32, min=1e-6)
+        re_f32: Tensor = y_clamped_f32 / il_f32_safe
+        re_f32 = torch.clamp(input=re_f32, min=0.0, max=1.0)
 
-        il: Tensor = torch.exp(input=low_log)
-        re: Tensor = torch.exp(input=high_log)
-        return il, re
+        return il_f32.to(dtype=original_dtype), re_f32.to(dtype=original_dtype)
 
 
 class ImageDecomposition(nn.Module):
     def __init__(
         self,
-        offset: float,
-        cutoff: float,
+        kernel_size,
+        sigma,
     ) -> None:
         super().__init__()
-        self.rgb2ycrcb: RGB2YCrCbBlock = RGB2YCrCbBlock(
-            offset=offset,
-        )
+
+        self.rgb2ycrcb: RGB2YCrCbBlock = RGB2YCrCbBlock()
         self.homomorphic: HomomorphicSeparationBlock = HomomorphicSeparationBlock(
-            cutoff=cutoff,
-        )
-        self.ycrcb2rgb: YCrCb2RGBBlock = YCrCb2RGBBlock(
-            offset=offset,
+            kernel_size=kernel_size,
+            sigma=sigma,
         )
 
     def forward(
@@ -165,12 +134,10 @@ class ImageDecomposition(nn.Module):
 class ImageComposition(nn.Module):
     def __init__(
         self,
-        offset: float,
     ) -> None:
         super().__init__()
-        self.ycrcb2rgb: YCrCb2RGBBlock = YCrCb2RGBBlock(
-            offset=offset,
-        )
+
+        self.ycrcb2rgb: YCrCb2RGBBlock = YCrCb2RGBBlock()
 
     def forward(
         self,
@@ -178,7 +145,9 @@ class ImageComposition(nn.Module):
         cb: Tensor,
         il: Tensor,
         re: Tensor,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         y_enh: Tensor = il * re
-        img_enh: Tensor = self.ycrcb2rgb(y_enh, cr, cb)
-        return img_enh, y_enh
+        ycrcb: Tensor = torch.cat(tensors=[y_enh, cr, cb], dim=1)
+        img_enh: Tensor = self.ycrcb2rgb(ycrcb)
+
+        return img_enh, ycrcb, y_enh

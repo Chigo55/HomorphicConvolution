@@ -4,7 +4,6 @@ from torch import Tensor
 
 from model.blocks.homomorphic import ImageComposition, ImageDecomposition
 from model.blocks.illuminationenhancer import IlluminationEnhancer
-from model.blocks.iterablerefine import IterableRefine
 
 
 class LowLightEnhancer(nn.Module):
@@ -12,14 +11,14 @@ class LowLightEnhancer(nn.Module):
         self,
         hidden_channels: int,
         num_resolution: int,
-        cutoff: float,
-        offset: float,
+        kernel_size,
+        sigma,
     ) -> None:
         super().__init__()
 
         self.decomposition: ImageDecomposition = ImageDecomposition(
-            offset=offset,
-            cutoff=cutoff,
+            kernel_size=kernel_size,
+            sigma=sigma,
         )
 
         self.illumination_enhancer: IlluminationEnhancer = IlluminationEnhancer(
@@ -29,16 +28,14 @@ class LowLightEnhancer(nn.Module):
             num_resolution=num_resolution,
         )
 
-        self.composition: ImageComposition = ImageComposition(
-            offset=offset,
-        )
+        self.composition: ImageComposition = ImageComposition()
 
     def forward(self, low: Tensor) -> dict[str, Tensor]:
         y, cr, cb, il, re = self.decomposition(low)
 
         il_enh = self.illumination_enhancer(il)
 
-        img_enh, y_enh = self.composition(
+        img_enh, ycrcb_enh, y_enh = self.composition(
             cr,
             cb,
             il_enh,
@@ -55,6 +52,7 @@ class LowLightEnhancer(nn.Module):
             "low_rgb": low,
             "enh_illuminance": il_enh,
             "enh_luminance": y_enh,
+            "enh_ycrcb": ycrcb_enh,
             "enh_rgb": img_enh,
         }
         return outputs

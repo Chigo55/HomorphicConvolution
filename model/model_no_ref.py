@@ -7,7 +7,7 @@ from torch.optim.adam import Adam
 from torch.optim.optimizer import Optimizer
 
 from data.utils import LowLightSample
-from model.blocks.lowlightenhancer_no_ref import LowLightEnhancer
+from model.blocks.lowlightenhancer import LowLightEnhancer
 from model.loss_no_ref import TotalLoss
 from utils.metrics import ImageQualityMetrics
 
@@ -20,8 +20,8 @@ class LowLightEnhancerLightning(L.LightningModule):
 
         self.model: LowLightEnhancer = LowLightEnhancer(
             hidden_channels=self.hparams.get("hidden_channels", 32),
-            num_resolution=self.hparams.get("num_resolution", 4),
-            kernel_size=self.hparams.get("kernel_size", 31),
+            num_resolution=self.hparams.get("num_resolution", 2),
+            kernel_size=self.hparams.get("kernel_size", 15),
             sigma=self.hparams.get("sigma", 5.0),
         )
 

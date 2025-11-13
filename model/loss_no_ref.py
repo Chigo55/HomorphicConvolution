@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 
-class ColorConstancyLoss(nn.Module):
+class ColorConstancy(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
@@ -21,41 +21,11 @@ class ColorConstancyLoss(nn.Module):
         Drb = (mr - mb) ** 2
         Dgb = (mb - mg) ** 2
 
-        # loss = (Drg + Drb + Dgb).mean()
-        loss = ((Drg **2)  + (Drb ** 2) + (Dgb ** 2)) ** 0.5
+        loss = ((Drg**2) + (Drb**2) + (Dgb**2)) ** 0.5
         return loss
 
 
-# class ColorConstancyLoss(nn.Module):
-#     def __init__(self) -> None:
-#         super().__init__()
-
-#     def forward(self, input: Tensor) -> Tensor:
-#         if input.shape[1] == 1:
-#             return torch.tensor(data=0.0, device=input.device, dtype=input.dtype)
-
-#         if input.shape[1] != 3:
-#             raise ValueError(
-#                 f"Expected YCrCb 3-channel input, got {input.shape[1]} channels"
-#             )
-
-#         Y, Cr, Cb = torch.split(tensor=input, split_size_or_sections=1, dim=1)
-
-#         mean_Y = torch.mean(input=Y, dim=[2, 3], keepdim=True)
-#         mean_Cr = torch.mean(input=Cr, dim=[2, 3], keepdim=True)
-#         mean_Cb = torch.mean(input=Cb, dim=[2, 3], keepdim=True)
-
-#         Dcrcb = (mean_Cr - mean_Cb) ** 2
-
-#         D_ycr = (mean_Y - mean_Cr) ** 2
-#         D_ycb = (mean_Y - mean_Cb) ** 2
-
-#         loss = (Dcrcb + 0.5 * (D_ycr + D_ycb)).mean()
-
-#         return loss
-
-
-class SpatialConsistencyLoss(nn.Module):
+class SpatialConsistency(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
@@ -135,7 +105,7 @@ class SpatialConsistencyLoss(nn.Module):
         return loss
 
 
-class ExposureLoss(nn.Module):
+class Exposurecontrol(nn.Module):
     def __init__(
         self,
         patch_size: int = 16,
@@ -166,7 +136,7 @@ class ExposureLoss(nn.Module):
         return loss
 
 
-class IlluminationSmoothnessLoss(nn.Module):
+class IlluminationSmoothness(nn.Module):
     def __init__(
         self,
     ) -> None:
@@ -211,10 +181,12 @@ class TotalLoss(nn.Module):
         self.lambda_col = lambda_col
         self.lambda_illum = lambda_illum
 
-        self.loss_spa = SpatialConsistencyLoss()
-        self.loss_exp = ExposureLoss(patch_size=exp_patch_size, mean_val=exp_mean_val)
-        self.loss_col = ColorConstancyLoss()
-        self.loss_illum = IlluminationSmoothnessLoss()
+        self.loss_spa = SpatialConsistency()
+        self.loss_exp = Exposurecontrol(
+            patch_size=exp_patch_size, mean_val=exp_mean_val
+        )
+        self.loss_col = ColorConstancy()
+        self.loss_illum = IlluminationSmoothness()
 
     def forward(
         self,

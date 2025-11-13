@@ -1,13 +1,8 @@
-import os
 import random
 from typing import Any
 
-import numpy as np
-
 from engine.engine import LightningEngine
 from model.model import LowLightEnhancerLightning
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "1, 0"
 
 
 def get_hparams() -> dict[str, Any]:
@@ -29,13 +24,16 @@ def get_hparams() -> dict[str, Any]:
         "bench_data_path": "data/3_bench",
         "infer_data_path": "data/4_infer",
         "image_size": 256,
-        "batch_size": 24,
+        "batch_size": 8,
         "num_workers": 10,
         # Model
         "hidden_channels": 32,
         "num_resolution": 2,
-        "offset": 0.5,
-        "cutoff": 0.1,
+        "kernel_size": 15,
+        "sigma": 5,
+        # Loss
+        "lambda_mae": 1.0,
+        "lambda_mse": 1.0,
     }
     return hparams
 
@@ -45,14 +43,12 @@ def main() -> None:
     seed: int = random.randint(0, 1000)
     hparams["seed"] = seed
 
-    for i in np.arange(0.05, 0.5, 0.05):
-        hparams["cutoff"] = i
-        engine: LightningEngine = LightningEngine(
-            model_class=LowLightEnhancerLightning,
-            hparams=hparams,
-        )
-        engine.train()
-        engine.bench()
+    engine: LightningEngine = LightningEngine(
+        model_class=LowLightEnhancerLightning,
+        hparams=hparams,
+    )
+    engine.train()
+    engine.bench()
 
 
 if __name__ == "__main__":

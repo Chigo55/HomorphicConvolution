@@ -1,7 +1,5 @@
 from typing import Any
 
-import pyiqa
-import torch
 import torch.nn as nn
 from torch import Tensor
 
@@ -38,21 +36,34 @@ class MeanSquaredError(nn.MSELoss):
         return super().forward(input=input, target=target)
 
 
-class StructuralSimilarity(nn.Module):
+class TotalLoss(nn.Module):
     def __init__(
         self,
-        device: str = "cuda",
+        lambda_mae: float = 1.0,
+        lambda_mse: float = 1.0,
     ) -> None:
         super().__init__()
-        self.ssim = pyiqa.create_metric(
-            metric_name="ssimc",
-            device=device,
-            as_loss=True,
-        )
+
+        self.lambda_mae = lambda_mae
+        self.lambda_mse = lambda_mse
+
+        self.loss_mae = MeanAbsoluteError()
+        self.loss_mse = MeanSquaredError()
 
     def forward(
         self,
         input: Tensor,
-        targets: Tensor,
-    ) -> Tensor:
-        return 1 - torch.mean(input=self.ssim(input, targets))
+        target: Tensor,
+    ) -> tuple[Tensor, dict[str, Tensor]]:
+        l_mae = self.loss_mae(input, target)
+        l_mse = self.loss_mse(input, target)
+
+        total_loss = self.lambda_mae * l_mae + self.lambda_mse * l_mse
+
+        loss_dict = {
+            "loss_total": total_loss.detach(),
+            "loss_mae": self.lambda_mae * l_mae.detach(),
+            "loss_mse": self.lambda_mse * l_mse.detach(),
+        }
+
+        return total_loss, loss_dict
