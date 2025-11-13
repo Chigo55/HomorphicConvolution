@@ -12,6 +12,7 @@ dependencies = [
     "torchaudio==2.7.1+cu118",
     "torchinfo>=1.8.0",
     "torchvision==0.22.1+cu118",
+    "ipykernel>=7.1.0",
 ]
 
 [dependency-groups]
