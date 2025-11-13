@@ -20,7 +20,7 @@ def get_hparams() -> dict[str, Any]:
         "precision": "16-mixed",
         "log_every_n_steps": 5,
         "log_dir": "runs/",
-        "experiment_name": "iter/",
+        "experiment_name": "ref/",
         "patience": 100,
         # Runner
         "inference": "inference/",
@@ -28,12 +28,12 @@ def get_hparams() -> dict[str, Any]:
         "valid_data_path": "data/2_valid",
         "bench_data_path": "data/3_bench",
         "infer_data_path": "data/4_infer",
-        "image_size": 512,
+        "image_size": 256,
         "batch_size": 24,
         "num_workers": 10,
         # Model
-        "hidden_channels": 64,
-        "num_resolution": 4,
+        "hidden_channels": 32,
+        "num_resolution": 2,
         "offset": 0.5,
         "cutoff": 0.1,
     }

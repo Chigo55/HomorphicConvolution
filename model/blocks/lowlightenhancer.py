@@ -29,10 +29,6 @@ class LowLightEnhancer(nn.Module):
             num_resolution=num_resolution,
         )
 
-        self.Iterable_refine: IterableRefine = IterableRefine(
-            hidden_channels=hidden_channels,
-        )
-
         self.composition: ImageComposition = ImageComposition(
             offset=offset,
         )
@@ -42,12 +38,10 @@ class LowLightEnhancer(nn.Module):
 
         il_enh = self.illumination_enhancer(il)
 
-        il_ref = self.Iterable_refine(il_enh)
-
         img_enh, y_enh = self.composition(
             cr,
             cb,
-            il_ref,
+            il_enh,
             re,
         )
         img_enh = torch.clamp(input=img_enh, min=0.0, max=1.0)
@@ -60,7 +54,6 @@ class LowLightEnhancer(nn.Module):
             "low_reflectance": re,
             "low_rgb": low,
             "enh_illuminance": il_enh,
-            "ref_illuminance": il_ref,
             "enh_luminance": y_enh,
             "enh_rgb": img_enh,
         }

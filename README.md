@@ -1,110 +1,66 @@
-# HomomorphicDiT: Low-Light Image Enhancement
+# HomomorphicDiT — Low-Light Image Enhancement
 
-This repository implements a deep learning pipeline for low-light image enhancement using a homomorphic separation and transformer-based architecture. The project is organized for training, validation, benchmarking, and inference of the HomomorphicDiT model.
+A research codebase for low-light image enhancement using homomorphic separation and transformer-based modules. The project contains training, validation, benchmarking and inference components, plus utilities for metrics (including BRISQUE/NIQE) and data handling.
 
-## Project Structure
+## Repository layout (important files & folders)
 
-```
-.
-├── main.py
-├── requirements.txt
-├── data_split.ipynb
-├── difusion.ipynb
-├── image.ipynb
-├── times.ttf
-├── data/
-│   ├── dataloader.py
-│   ├── utils.py
-│   ├── 1_train/
-│   ├── 2_valid/
-│   ├── 3_bench/
-│   ├── 4_infer/
-│   └── database/
-├── engine/
-│   ├── trainer.py
-│   ├── validater.py
-│   ├── inferencer.py
-│   └── benchmarker.py
-├── model/
-│   ├── model.py
-│   ├── block.py
-│   └── losses.py
-├── utils/
-│   ├── utils.py
-│   ├── metrics.py
-│   └── hook.py
-├── runs/
-│   └── HomomorphicUnet/
-└── zoo/
-```
+- model/
+  - model.py, model_no_ref.py — model entry points
+  - loss.py, loss_no_ref.py — loss definitions
+  - blocks/ — homomorphic / illumination / lowlight blocks (homomorphic.py, lowlightenhancer.py, and no-ref variants)
+- engine/
+  - engine.py — engine utilities
+  - runner.py — top-level runner (training / validation / inference orchestration)
+- data/
+  - dataloader.py — dataset & loader logic
+  - utils.py — dataset helpers
+  - 1_train, 2_valid, 3_bench, 4_infer, database — expected dataset layout (high/low subfolders)
+- utils/
+  - utils.py — general utilities (saving, helpers)
+  - metrics.py — PSNR/SSIM/LPIPS/NIQE/BRISQUE helpers
+  - files/ — BRISQUE model & range YAMLs used by metrics
+- __init__.py files included for package imports
 
-## Main Components
+## Quick start
 
-- **Model**: The core model is implemented in [`model/model.py`](model/model.py), with transformer blocks in [`model/block.py`](model/block.py) and loss functions in [`model/losses.py`](model/losses.py).
-- **Data**: Data loading and augmentation utilities are in [`data/dataloader.py`](data/dataloader.py) and [`data/utils.py`](data/utils.py).
-- **Engine**: Training, validation, inference, and benchmarking logic are in [`engine/trainer.py`](engine/trainer.py), [`engine/validater.py`](engine/validater.py), [`engine/inferencer.py`](engine/inferencer.py), and [`engine/benchmarker.py`](engine/benchmarker.py).
-- **Utilities**: General utilities and metrics are in [`utils/utils.py`](utils/utils.py) and [`utils/metrics.py`](utils/metrics.py).
+1. Prepare Python environment (example):
+   - python >= 3.8, PyTorch and common packages (torch, torchvision, numpy, opencv-python, PyYAML)
+   - Create virtualenv and install dependencies used in your environment.
 
-## Data Preparation
+2. Arrange data:
+   - Put paired or unpaired datasets under data/ following the existing folders:
+     - data/1_train/.../high and /low
+     - data/2_valid/.../high and /low
+     - data/3_bench and data/4_infer as needed
 
-- Place your training, validation, benchmarking, and inference images in the respective folders under `data/`.
-- Use [`data_split.ipynb`](data_split.ipynb) to split and organize your dataset if needed.
+3. Run the runner
+   - The project uses engine/runner.py as the orchestration entry. Inspect runner.py for available CLI/flags and usage.
+   - Example:
+     - python -m engine.runner  (or) python engine/runner.py --help
 
-## Training
+4. Training / Validation / Inference
+   - Use engine.runner to start training and validation; engine.engine contains lower-level utilities used by the runner.
+   - Model variants:
+     - model.py / loss.py — reference-based training
+     - model_no_ref.py / loss_no_ref.py — no-reference training flows
 
-To train the model, run:
+## Metrics & evaluation
 
-```sh
-python main.py
-```
+- metrics.py implements common quality metrics (PSNR, SSIM, LPIPS) and wrappers for no-reference metrics (NIQE / BRISQUE). BRISQUE uses YAML files in utils/files/.
+- Use the provided utilities to compute metrics during validation and benchmarking.
 
-Or use the training logic in [`difusion.ipynb`](difusion.ipynb) for interactive experimentation.
+## Development notes
 
-Hyperparameters are defined in the `get_hparams()` function (see [`difusion.ipynb`](difusion.ipynb)), including model size, loss weights, learning rate, and data paths.
+- The codebase separates "ref" and "no-ref" flows; check filenames with `_no_ref` to find the alternative implementations.
+- Blocks/ contains the homomorphic and illumination-specific components; these are the building blocks for the model variants.
 
-## Validation & Benchmarking
+## Contributing
 
-- Validation and benchmarking can be performed using the scripts in the `engine/` directory or interactively in [`difusion.ipynb`](difusion.ipynb).
-- Image quality metrics such as PSNR, SSIM, LPIPS, NIQE, and BRISQUE are computed using [`utils/metrics.py`](utils/metrics.py).
+- Open issues or PRs for bug fixes, small improvements, or additions.
+- Keep experiments and new checkpoints/logs outside the repository (e.g., in runs/).
 
-## Inference
+## License & citation
 
-To run inference on new images, use the inference logic in [`engine/inferencer.py`](engine/inferencer.py) or the corresponding cells in [`difusion.ipynb`](difusion.ipynb).
+- Add appropriate license and citation to any paper or repository this code is derived from. If used for publications, cite the correct work.
 
-## Visualization
-
-[`image.ipynb`](image.ipynb) provides visualization utilities for inspecting input, intermediate, and enhanced images.
-
-## Requirements
-
-Install dependencies with:
-
-```sh
-pip install -r requirements.txt
-```
-
-Key dependencies include:
-- PyTorch
-- PyTorch Lightning
-- torchvision
-- opencv-contrib-python
-- numpy
-- matplotlib
-
-## Utilities
-
-- Model parameter counting and summaries: [`utils/utils.py`](utils/utils.py)
-- Image saving and metric printing: [`utils/utils.py`](utils/utils.py)
-
-## Checkpoints & Logs
-
-- Training logs and checkpoints are saved under `runs/` and `runs2/` directories.
-- Best checkpoints are saved based on validation metrics.
-
-## Citation
-
-If you use this codebase, please cite the original paper (add citation here if available).
-
----
-
-**Note:** This repository is designed for research and educational purposes. For production use, further testing and optimization are
+For details about configuration options, hyperparameters and exact CLI usage, inspect engine/runner.py, model/*.py and data/dataloader.py.
