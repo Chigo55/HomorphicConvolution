@@ -129,7 +129,18 @@ class LowLightEnhancerLightning(L.LightningModule):
         low_img, high_img = batch
         outputs = self.forward(low=low_img)
 
-        metrics = self.metric.full(preds=outputs["enh_rgb"], targets=high_img)
+        preds = torch.clamp(
+            input=outputs["enh_rgb"].float(),
+            min=0.0 + 1e-5,
+            max=1.0 - 1e-5,
+        )
+        targets = torch.clamp(
+            input=high_img.float(),
+            min=0.0 + 1e-5,
+            max=1.0 - 1e-5,
+        )
+
+        metrics = self.metric.full(preds=preds, targets=targets)
 
         self.log_dict(
             dictionary={
@@ -150,7 +161,13 @@ class LowLightEnhancerLightning(L.LightningModule):
     ) -> list[Tensor]:
         low_img, _ = batch
         results = self.forward(low=low_img)
-        return [results["enh_rgb"]]
+        return [
+            torch.clamp(
+                input=results["enh_rgb"],
+                min=0.0 + 1e-5,
+                max=1.0 - 1e-5,
+            )
+        ]
 
     def configure_optimizers(self) -> list[Optimizer]:
         lr = float(self.hparams.get("lr", 1e-3))

@@ -2,22 +2,21 @@ import random
 from typing import Any
 
 from engine.engine import LightningEngine
-from model.model_no_ref import LowLightEnhancerLightning
+from model.model import LowLightEnhancerLightning
 
 
 def get_hparams() -> dict[str, Any]:
     hparams: dict[str, Any] = {
         # Engine
         "seed": 42,
-        "max_epochs": 50,
+        "max_epochs": 100,
         "accelerator": "gpu",
         "devices": 1,
         "precision": "16-mixed",
-        # "precision": 32,
         "log_every_n_steps": 5,
         "log_dir": "runs/",
-        "experiment_name": "test/",
-        "patience": 10,
+        "experiment_name": "bench/",
+        "patience": 100,
         # Runner
         "inference": "inference/",
         "train_data_path": "data/1_train",
@@ -25,20 +24,16 @@ def get_hparams() -> dict[str, Any]:
         "bench_data_path": "data/3_bench",
         "infer_data_path": "data/4_infer",
         "image_size": 256,
-        "batch_size": 32,
+        "batch_size": 8,
         "num_workers": 10,
         # Model
         "hidden_channels": 32,
         "num_resolution": 2,
-        "kernel_size": 17,
+        "kernel_size": 15,
         "sigma": 5,
         # Loss
-        "lambda_spa": 1.0,
-        "lambda_exp": 1.0,
-        "lambda_col": 1.0,
-        "lambda_illum": 1.0,
-        "exp_patch_size": 16,
-        "exp_mean_val": 0.6,
+        "lambda_mae": 1.0,
+        "lambda_mse": 1.0,
     }
     return hparams
 
@@ -51,8 +46,8 @@ def main() -> None:
     engine: LightningEngine = LightningEngine(
         model_class=LowLightEnhancerLightning,
         hparams=hparams,
+        checkpoint_path=r"runs\ref\version_0\checkpoints\best.ckpt",
     )
-    engine.train()
     engine.bench()
 
 

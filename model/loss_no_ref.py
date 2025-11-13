@@ -22,6 +22,7 @@ class ColorConstancy(nn.Module):
         Dgb = (mb - mg) ** 2
 
         loss = ((Drg**2) + (Drb**2) + (Dgb**2)) ** 0.5
+        loss = torch.mean(input=loss)
         return loss
 
 
@@ -100,7 +101,8 @@ class SpatialConsistency(nn.Module):
             + (D_org_r - D_enh_r) ** 2
             + (D_org_u - D_enh_u) ** 2
             + (D_org_d - D_enh_d) ** 2
-        ).mean()
+        )
+        loss = torch.mean(input=loss)
 
         return loss
 
@@ -160,6 +162,7 @@ class IlluminationSmoothness(nn.Module):
         w_tv = ((input[:, :, :, 1:] - input[:, :, :, : w - 1]) ** 2).sum()
 
         loss = 2 * (h_tv / count_h + w_tv / count_w) / batch
+        loss = torch.mean(input=loss)
 
         return loss
 
