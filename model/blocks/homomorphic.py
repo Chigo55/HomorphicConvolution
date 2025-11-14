@@ -1,5 +1,4 @@
 import math
-from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -22,7 +21,7 @@ class RGB2YCrCbBlock(nn.Module):
         ).view(3, 3, 1, 1)
         self.conv.weight = nn.Parameter(data=transform, requires_grad=False)
 
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         ycrcb: Tensor = self.conv(x)
         y, cr, cb = torch.chunk(input=ycrcb, chunks=3, dim=1)
         return y, cr, cb
@@ -86,7 +85,7 @@ class HomomorphicSeparationBlock(nn.Module):
     def forward(
         self,
         y: Tensor,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         original_dtype = y.dtype
 
         y_f32: Tensor = y.float()
@@ -104,7 +103,6 @@ class HomomorphicSeparationBlock(nn.Module):
         il_f32_safe = torch.clamp(input=il_f32, min=1e-6)
         re_f32: Tensor = y_clamped_f32 / il_f32_safe
         re_f32 = torch.clamp(input=re_f32, min=0.0, max=1.0)
-
         return il_f32.to(dtype=original_dtype), re_f32.to(dtype=original_dtype)
 
 
@@ -125,7 +123,7 @@ class ImageDecomposition(nn.Module):
     def forward(
         self,
         x: Tensor,
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         y, cr, cb = self.rgb2ycrcb(x)
         il, re = self.homomorphic(y)
         return y, cr, cb, il, re
@@ -143,11 +141,8 @@ class ImageComposition(nn.Module):
         self,
         cr: Tensor,
         cb: Tensor,
-        il: Tensor,
-        re: Tensor,
-    ) -> Tuple[Tensor, Tensor, Tensor]:
-        y_enh: Tensor = il * re
-        ycrcb: Tensor = torch.cat(tensors=[y_enh, cr, cb], dim=1)
+        y: Tensor,
+    ) -> Tensor:
+        ycrcb: Tensor = torch.cat(tensors=[y, cr, cb], dim=1)
         img_enh: Tensor = self.ycrcb2rgb(ycrcb)
-
-        return img_enh, ycrcb, y_enh
+        return img_enh

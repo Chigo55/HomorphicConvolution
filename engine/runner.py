@@ -36,7 +36,6 @@ class _BaseRunner(ABC):
             batch_size=self.hparams.get("batch_size", 16),
             num_workers=self.hparams.get("num_workers", 10),
         )
-
         return datamodule
 
     @abstractmethod

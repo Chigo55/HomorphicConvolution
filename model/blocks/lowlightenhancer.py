@@ -4,6 +4,7 @@ from torch import Tensor
 
 from model.blocks.homomorphic import ImageComposition, ImageDecomposition
 from model.blocks.illuminationenhancer import IlluminationEnhancer
+from model.blocks.reflectanceguidedfusion import ReflectanceGuidedFusion
 
 
 class LowLightEnhancer(nn.Module):
@@ -28,6 +29,10 @@ class LowLightEnhancer(nn.Module):
             num_resolution=num_resolution,
         )
 
+        self.refiner: ReflectanceGuidedFusion = ReflectanceGuidedFusion(
+            hidden_channels=hidden_channels,
+        )
+
         self.composition: ImageComposition = ImageComposition()
 
     def forward(self, low: Tensor) -> dict[str, Tensor]:
@@ -35,24 +40,21 @@ class LowLightEnhancer(nn.Module):
 
         il_enh = self.illumination_enhancer(il)
 
-        img_enh, ycrcb_enh, y_enh = self.composition(
-            cr,
-            cb,
-            il_enh,
-            re,
-        )
+        y_enh, re_ref = self.refiner(il_enh, re)
+
+        img_enh = self.composition(cr, cb, y_enh)
         img_enh = torch.clamp(input=img_enh, min=0.0, max=1.0)
 
         outputs: dict[str, Tensor] = {
+            "low_rgb": low,
             "low_luminance": y,
             "low_chroma_red": cr,
             "low_chroma_blue": cb,
             "low_illuminance": il,
             "low_reflectance": re,
-            "low_rgb": low,
             "enh_illuminance": il_enh,
+            "refined_reflectance": re_ref,
             "enh_luminance": y_enh,
-            "enh_ycrcb": ycrcb_enh,
             "enh_rgb": img_enh,
         }
         return outputs

@@ -27,8 +27,8 @@ def get_hparams() -> dict[str, Any]:
         "batch_size": 8,
         "num_workers": 10,
         # Model
-        "hidden_channels": 32,
-        "num_resolution": 2,
+        "hidden_channels": 64,
+        "num_resolution": 4,
         "kernel_size": 15,
         "sigma": 5,
         # Loss

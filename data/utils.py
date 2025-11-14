@@ -55,7 +55,6 @@ class LowLightDataset(Dataset[LowLightSample]):
 
         low_tensor: Tensor = cast(Tensor, self.transform(img=low_image))
         high_tensor: Tensor = cast(Tensor, self.transform(img=high_image))
-
         return low_tensor, high_tensor
 
     def _pair_augment(
@@ -70,5 +69,4 @@ class LowLightDataset(Dataset[LowLightSample]):
         if random.random() < 0.5:
             low_image = low_image.transpose(Image.FLIP_TOP_BOTTOM)
             high_image = high_image.transpose(Image.FLIP_TOP_BOTTOM)
-
         return low_image, high_image

@@ -73,7 +73,6 @@ class DoubleConv(nn.Module):
         self,
         x: Tensor,
     ) -> Tensor:
-        b, c, h, w = x.shape
         x = self.conv1(x)
         x = self.conv2(x)
         return x
@@ -143,6 +142,8 @@ class IlluminationEnhancer(nn.Module):
             padding=1,
             bias=False,
         )
+        self.in_act: nn.Sigmoid = nn.Sigmoid()
+
         hidden_level = hidden_channels
         down: list[nn.Module] = []
         for level in range(num_resolution):
@@ -200,12 +201,14 @@ class IlluminationEnhancer(nn.Module):
             padding=1,
             bias=False,
         )
+        self.out_act: nn.Sigmoid = nn.Sigmoid()
 
     def forward(
         self,
         x: Tensor,
     ) -> Tensor:
         x = self.in_conv(x)
+        x = self.in_act(x)
 
         residuals: list[Tensor] = []
         for module in self.down:
@@ -226,4 +229,5 @@ class IlluminationEnhancer(nn.Module):
                 x = module(x)
 
         x = self.out_conv(x)
+        x = self.out_act(x)
         return x
