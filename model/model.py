@@ -73,8 +73,8 @@ class LowLightEnhancerLightning(L.LightningModule):
             "low_chroma_blue",
             "low_illuminance",
             "low_reflectance",
+            "parameter_component",
             "enh_illuminance",
-            "refined_reflectance",
             "enh_luminance",
             "enh_rgb",
         ]

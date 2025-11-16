@@ -78,12 +78,13 @@ class LowLightEnhancerLightning(L.LightningModule):
         logger = self.logger.experiment
 
         image_keys = [
+            "low_rgb",
             "low_luminance",
             "low_chroma_red",
             "low_chroma_blue",
             "low_illuminance",
             "low_reflectance",
-            "low_rgb",
+            "parameter_component",
             "enh_illuminance",
             "enh_luminance",
             "enh_rgb",

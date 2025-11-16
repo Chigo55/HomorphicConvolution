@@ -40,7 +40,7 @@ class LowLightEnhancer(nn.Module):
 
         il_enh = self.illumination_enhancer(il)
 
-        y_enh, re_ref = self.refiner(il_enh, re)
+        y_enh, param_comp = self.refiner(il_enh, re)
 
         img_enh = self.composition(cr, cb, y_enh)
         img_enh = torch.clamp(input=img_enh, min=0.0, max=1.0)
@@ -52,8 +52,8 @@ class LowLightEnhancer(nn.Module):
             "low_chroma_blue": cb,
             "low_illuminance": il,
             "low_reflectance": re,
+            "parameter_component": param_comp,
             "enh_illuminance": il_enh,
-            "refined_reflectance": re_ref,
             "enh_luminance": y_enh,
             "enh_rgb": img_enh,
         }
