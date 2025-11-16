@@ -138,7 +138,36 @@ class Exposurecontrol(nn.Module):
         return loss
 
 
-class IlluminationSmoothness(nn.Module):
+class IlluminanceSmoothness(nn.Module):
+    def __init__(
+        self,
+    ) -> None:
+        super().__init__()
+
+    def forward(
+        self,
+        input: Tensor,
+    ) -> Tensor:
+        batch = input.size(dim=0)
+        h = input.size(dim=2)
+        w = input.size(dim=3)
+
+        if h == 1 or w == 1:
+            return torch.tensor(data=0.0, device=input.device, dtype=input.dtype)
+
+        count_h = (h - 1) * w
+        count_w = h * (w - 1)
+
+        h_tv = ((input[:, :, 1:, :] - input[:, :, : h - 1, :]) ** 2).sum()
+        w_tv = ((input[:, :, :, 1:] - input[:, :, :, : w - 1]) ** 2).sum()
+
+        loss = 2 * (h_tv / count_h + w_tv / count_w) / batch
+        loss = torch.mean(input=loss)
+
+        return loss
+
+
+class ParameterSmoothness(nn.Module):
     def __init__(
         self,
     ) -> None:
@@ -172,7 +201,8 @@ class TotalLoss(nn.Module):
         self,
         lambda_spa: float = 1.0,
         lambda_exp: float = 1.0,
-        lambda_col: float = 1.0,
+        # lambda_col: float = 1.0,
+        lambda_alpha: float = 1.0,
         lambda_illum: float = 1.0,
         exp_patch_size: int = 16,
         exp_mean_val: float = 0.8,
@@ -181,32 +211,38 @@ class TotalLoss(nn.Module):
 
         self.lambda_spa = lambda_spa
         self.lambda_exp = lambda_exp
-        self.lambda_col = lambda_col
+        # self.lambda_col = lambda_col
+        self.lambda_alpha = lambda_alpha
         self.lambda_illum = lambda_illum
 
         self.loss_spa = SpatialConsistency()
         self.loss_exp = Exposurecontrol(
-            patch_size=exp_patch_size, mean_val=exp_mean_val
+            patch_size=exp_patch_size,
+            mean_val=exp_mean_val,
         )
-        self.loss_col = ColorConstancy()
-        self.loss_illum = IlluminationSmoothness()
+        # self.loss_col = ColorConstancy()
+        self.loss_alpha = ParameterSmoothness()
+        self.loss_illum = IlluminanceSmoothness()
 
     def forward(
         self,
         low_luminance: Tensor,
         enh_luminance: Tensor,
+        # enh_rgb: Tensor,
+        alpha_component: Tensor,
         enh_illuminance: Tensor,
-        enh_rgb: Tensor,
     ) -> tuple[Tensor, dict[str, Tensor]]:
         l_spa = self.loss_spa(low_luminance, enh_luminance)
         l_exp = self.loss_exp(enh_illuminance)
+        # l_col = self.loss_col(enh_rgb)
+        l_alpha = self.loss_alpha(alpha_component)
         l_illum = self.loss_illum(enh_illuminance)
-        l_col = self.loss_col(enh_rgb)
 
         total_loss = (
             self.lambda_spa * l_spa
             + self.lambda_exp * l_exp
-            + self.lambda_col * l_col
+            # + self.lambda_col * l_col
+            + self.lambda_alpha * l_alpha
             + self.lambda_illum * l_illum
         )
 
@@ -214,7 +250,8 @@ class TotalLoss(nn.Module):
             "loss_total": total_loss.detach(),
             "loss_spa": self.lambda_spa * l_spa.detach(),
             "loss_exp": self.lambda_exp * l_exp.detach(),
-            "loss_col": self.lambda_col * l_col.detach(),
+            # "loss_col": self.lambda_col * l_col.detach(),
+            "loss_alpha": self.lambda_alpha * l_alpha.detach(),
             "loss_illum": self.lambda_illum * l_illum.detach(),
         }
 

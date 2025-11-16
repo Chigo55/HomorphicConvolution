@@ -28,7 +28,8 @@ class LowLightEnhancerLightning(L.LightningModule):
         self.loss: TotalLoss = TotalLoss(
             lambda_spa=self.hparams.get("lambda_spa", 10.0),
             lambda_exp=self.hparams.get("lambda_exp", 100.0),
-            lambda_col=self.hparams.get("lambda_col", 100.0),
+            # lambda_col=self.hparams.get("lambda_col", 100.0),
+            lambda_alpha=self.hparams.get("lambda_alpha", 100.0),
             lambda_illum=self.hparams.get("lambda_illum", 100.0),
             exp_patch_size=self.hparams.get("exp_patch_size", 16),
             exp_mean_val=self.hparams.get("exp_mean_val", 0.6),
@@ -45,14 +46,16 @@ class LowLightEnhancerLightning(L.LightningModule):
     ) -> tuple[Tensor, dict[str, Tensor]]:
         low_lum = outputs["low_luminance"]
         enh_lum = outputs["enh_luminance"]
+        # enh_rgb = outputs["enh_rgb"]
+        alpha_component = outputs["alpha_component"]
         enh_illum = outputs["enh_illuminance"]
-        enh_rgb = outputs["enh_rgb"]
 
         total_loss, loss_dict = self.loss(
             low_luminance=low_lum,
             enh_luminance=enh_lum,
+            # enh_rgb=enh_rgb,
+            alpha_component=alpha_component,
             enh_illuminance=enh_illum,
-            enh_rgb=enh_rgb,
         )
         return total_loss, loss_dict
 
@@ -84,7 +87,7 @@ class LowLightEnhancerLightning(L.LightningModule):
             "low_chroma_blue",
             "low_illuminance",
             "low_reflectance",
-            "parameter_component",
+            "alpha_component",
             "enh_illuminance",
             "enh_luminance",
             "enh_rgb",

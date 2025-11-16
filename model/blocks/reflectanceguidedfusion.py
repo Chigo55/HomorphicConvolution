@@ -34,9 +34,9 @@ class ReflectanceGuidedFusion(nn.Module):
         y_base = il_enh * re
 
         concat_input = torch.cat(tensors=[il_enh, re], dim=1)
-        param_comp = self.param_net(concat_input)
+        alpha = self.param_net(concat_input)
 
-        y_enh = y_base + param_comp * y_base * (1 - y_base)
+        y_enh = y_base + alpha * y_base * (1 - y_base)
 
         y_enh = torch.clamp(input=y_enh, min=0.0, max=1.0)
-        return y_enh, param_comp
+        return y_enh, alpha

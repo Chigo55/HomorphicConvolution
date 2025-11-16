@@ -35,7 +35,8 @@ def get_hparams() -> dict[str, Any]:
         # Loss
         "lambda_spa": 1.0,
         "lambda_exp": 1.0,
-        "lambda_col": 1.0,
+        # "lambda_col": 10.0,
+        "lambda_parm": 1.0,
         "lambda_illum": 1.0,
         "exp_patch_size": 16,
         "exp_mean_val": 0.6,
