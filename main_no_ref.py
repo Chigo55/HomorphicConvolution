@@ -9,7 +9,7 @@ def get_hparams() -> dict[str, Any]:
     hparams: dict[str, Any] = {
         # Engine
         "seed": 42,
-        "max_epochs": 50,
+        "max_epochs": 100,
         "accelerator": "gpu",
         "devices": 1,
         "precision": "16-mixed",
@@ -17,7 +17,7 @@ def get_hparams() -> dict[str, Any]:
         "log_every_n_steps": 5,
         "log_dir": "runs/",
         "experiment_name": " no_ref/",
-        "patience": 10,
+        "patience": 100,
         # Runner
         "inference": "inference/",
         "train_data_path": "data/1_train",
@@ -33,10 +33,10 @@ def get_hparams() -> dict[str, Any]:
         "kernel_size": 17,
         "sigma": 5,
         # Loss
-        "lambda_spa": 1.0,
-        "lambda_exp": 1.0,
+        "lambda_spa": 5.0,
+        "lambda_exp": 5.0,
         # "lambda_col": 10.0,
-        "lambda_parm": 1.0,
+        "lambda_parm": 5.0,
         "lambda_illum": 1.0,
         "exp_patch_size": 16,
         "exp_mean_val": 0.6,
