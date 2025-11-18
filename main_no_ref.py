@@ -38,8 +38,8 @@ def get_hparams() -> dict[str, Any]:
         # "lambda_col": 10.0,
         "lambda_parm": 5.0,
         "lambda_illum": 1.0,
-        "exp_patch_size": 16,
-        "exp_mean_val": 0.6,
+        "exp_patch_size": 8,
+        "exp_mean_val": 0.7,
     }
     return hparams
 
